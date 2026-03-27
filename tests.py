@@ -1,18 +1,18 @@
 import torch
 from graph import *
 
-def djikstras(anthill: int, food: int, graph: torch.Tensor):
+def dijkstras(anthill: int, food: int, graph: torch.Tensor):
   """
-  Performs Djikstra's algorithm to find the shortest path from the ants to the food on the graph.
+  Performs Dijkstra's algorithm to find the shortest path from the ants to the food on the graph.
   Coordinates of the ants and food are given as integers corresponding to their positions on the graph taking the
   form i*n + j, where i is the row and j is the column of the grid, and the graph is represented as an 
   adjacency matrix with pheromone levels as edge weights.
-  Inputs:
+  Args:
     anthill: An integer representing the position of the anthill on the graph.
     food: An integer representing the position of the food on the graph.
-    graph: The graph on which to perform Djikstra's algorithm.
+    graph: The graph on which to perform Dijkstra's algorithm.
   Returns:
-    A list of nodes representing the shortest path from the anthill to the food on the graph.
+    path: A list of nodes representing the shortest path from the anthill to the food on the graph.
   """
   n = int(graph.size(0))
   # Visited is a bool mask for a tensor
@@ -50,47 +50,19 @@ def djikstras(anthill: int, food: int, graph: torch.Tensor):
 
   return path
 
-def astar(self):
-  """
-  Performs the A* algorithm to find the shortest path from the anthill to the food on the graph.
-  Coordinates of the anthill and food are given as integers corresponding to their positions on the graph 
-  taking the form i*n + j, where i is the row and j is the column of the grid, and the graph is represented as an 
-  adjacency matrix with pheromone levels as edge weights.
-  Inputs:
-    anthill: An integer representing the position of the anthill on the graph.
-    food: An integer representing the position of the food on the graph.
-    graph: The graph on which to perform Djikstra's algorithm.
-  Returns:
-    A list of nodes representing the shortest path from the anthill to the food on the graph.
-  """
-  pass
-
-def bfs(self):
-  """
-  Inputs:
-  Returns:
-  """
-  pass
-
-def dfs(self):
-  """
-  Inputs:
-  Returns:
-  """
-  pass
-
 def init_test():
   """
   Initializes random positions for the anthill and the food, and benchmarks the performance of classical 
-  pathfinding algorithms (Djikstra's, A*, BFS, DFS) in finding shortest paths from the anthill to the food on 
+  pathfinding algorithms (Dijkstra's, A*, BFS, DFS) in finding shortest paths from the anthill to the food on 
   the graph against the performance of our distributed pheromone-based algorithm.
   """
   n = 10
-  graph = init_pheromones(n)
+  pheromone = init_pheromones(n)
   anthill = torch.randint(0, n**2, (1,))
   food = torch.randint(0, n**2, (1,))
 
-  path_dijkstra = djikstras(anthill, food, graph)
-  path_astar = astar(anthill, food, graph)
+  path_dijkstra = dijkstras(anthill, food, pheromone)
 
-  # TODO: implement a* and a path recovery function for the ant algo
+  # TODO: finish initialization of this test suite
+
+# TODO: potentially add logic for visualizations while the algorithm is running!

@@ -9,17 +9,17 @@ def init_pheromones(n):
     between nodes that are adjacent in the grid (up, down, left, right), and the pheromone level on each edge 
     is initialized to 1.0.
     """
-    graph = torch.zeros((n**2, n**2), dtype=torch.float32)
+    pheromone = torch.zeros((n**2, n**2), dtype=torch.float32)
     nodes = torch.arange(n**2)
 
     # Horizontal edges are drawn between nodes that are not on the rightmost column
     mask_h = (nodes % n) < (n - 1)
     u_h = nodes[mask_h]
-    graph[u_h, u_h + 1] = graph[u_h + 1, u_h] = 1.0
+    pheromone[u_h, u_h + 1] = pheromone[u_h + 1, u_h] = 1.0
 
     # Vertical edges are drawn between nodes that are not on the bottom row
     mask_v = nodes < (n**2 - n)
     u_v = nodes[mask_v]
-    graph[u_v, u_v + n] = graph[u_v + n, u_v] = 1.0
+    pheromone[u_v, u_v + n] = pheromone[u_v + n, u_v] = 1.0
 
-    return graph
+    return pheromone
