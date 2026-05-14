@@ -1,5 +1,5 @@
 import torch
-from graph import *
+from ant import *
 
 def dijkstras(anthill: int, food: int, graph: torch.Tensor):
   """
@@ -43,9 +43,9 @@ def dijkstras(anthill: int, food: int, graph: torch.Tensor):
   # Reconstruct the path
   path = []
   current = food
-  while current is not -1:
+  while current != -1:
     path.append(current)
-    current = previous_nodes[current]
+    current = previous_nodes[current].item()
   path.reverse()
 
   return path
@@ -56,13 +56,24 @@ def init_test():
   pathfinding algorithms (Dijkstra's, A*, BFS, DFS) in finding shortest paths from the anthill to the food on 
   the graph against the performance of our distributed pheromone-based algorithm.
   """
-  n = 10
-  pheromone = init_pheromones(n)
-  anthill = torch.randint(0, n**2, (1,))
-  food = torch.randint(0, n**2, (1,))
+  n = 3
+  T = 500
+  decay = 0.1
+  # anthill = torch.randint(0, n**2, (1,))
+  # food = torch.randint(0, n**2, (1,))
+  anthill = 3
+  food = 5
+  grid = init_pheromones(n)
 
-  path_dijkstra = dijkstras(anthill, food, pheromone)
+  path_dijkstra = dijkstras(anthill, food, grid)
+  pheromone, ants = simulate_ants(n, anthill, food, 100, decay, T)
+  print("Dijkstra's path:", path_dijkstra)
+  print("Pheromone matrix:")
+  print(pheromone)
+  print("Ants matrix:")
+  print(ants)
 
-  # TODO: finish initialization of this test suite
+if __name__ == "__main__":
+    init_test()
 
 # TODO: potentially add logic for visualizations while the algorithm is running!

@@ -1,77 +1,93 @@
-# Holds the logic for updating pheromone levels on the edges and the movement of ants through the graph.
-import graph
+import torch
+from collections import deque
 
-# TODO: use pytorch!
-# TODO: make documentation cleaner
+def init_pheromones(n):
+    """
+    Initializes an n^2 x n^2 grid graph with pheromone levels set to 1.0.
+    A node at row i and column j in the grid corresponds to the index i*n + j in the graph. Edges are created
+    between nodes that are adjacent in the grid (up, down, left, right), and the pheromone level on each edge 
+    is initialized to 1.0.
+    """
+    pheromone = torch.zeros((n**2, n**2), dtype=torch.float32)
+    nodes = torch.arange(n**2)
 
-def update_pheromone(graph, flow, decay=0.9):
-    '''Updates the pheromone levels on the edges based on the flow of ants and a decay factor.'''
-    for i in graph:
-        for j in graph[i]:
-            graph[i][j] = decay * (graph[i][j] + flow[i][j] + flow[j][i])
-    return graph
+    # Horizontal edges are drawn to the right from nodes that are not on the rightmost column
+    mask_h = (nodes % n) < (n - 1)
+    u_h = nodes[mask_h]
+    pheromone[u_h, u_h + 1] = pheromone[u_h + 1, u_h] = 1.0
 
-# will have a budget of flow, have that scalar of flow at the source
-# each ant is like a flow
-# n = length/width of square graph
-# s = source
-def create_flow(forward, n, s, base_flow_amount):
-    flow = {}
-    for u in range(n):
-        for v in range(n):
-            if (u,v) == s and forward:
-                total_phermones = phermone[(u,v)][(u+1,v)]+phermone[(u,v)][(u-1,v)]+phermone[(u,v)][(u,v+1)]+phermone[(u,v)][(u,v-1)]
-                flow[(u,v)][(u+1,v)] = base_flow_amount*(phermone[(u,v)][(u+1,v)]/total_phermones)
-                flow[(u,v)][(u-1,v)] = base_flow_amount*(phermone[(u,v)][(u-1,v)]/total_phermones)
-                flow[(u,v)][(u,v+1)] = base_flow_amount*(phermone[(u,v)][(u,v+1)]/total_phermones)
-                flow[(u,v)][(u,v-1)] = base_flow_amount*(phermone[(u,v)][(u,v-1)]/total_phermones)
-            else:
-                flow[(u,v)][(u+1,v)] = 0
-                flow[(u,v)][(u-1,v)] = 0
-                flow[(u,v)][(u,v+1)] = 0
-                flow[(u,v)][(u,v-1)] = 0
-    return graph
+    # Vertical edges are drawn down from nodes that are not on the bottom row
+    mask_v = nodes < (n**2 - n)
+    u_v = nodes[mask_v]
+    pheromone[u_v, u_v + n] = pheromone[u_v + n, u_v] = 1.0
 
-# no leakage
-# n = length/width of square graph
-# d = destination (only outputs backwards flow)
-def update_flow(flow, forward, backward, phermone, n, d):
-  for u in range(n):
-      for v in range(n):
-        if (u,v) == d:
-            flow[(u,v)] = forward[(u-1,v)][(u,v)]+forward[(u+1)][(u,v)]+forward[(u,v-1)][(u,v)]+forward[(u,v+1)][(u,v)]
-            total_phermones = phermone[(u,v)][(u+1,v)]+phermone[(u,v)][(u-1,v)]+phermone[(u,v)][(u,v+1)]+phermone[(u,v)][(u,v-1)]
+    return pheromone
 
-            forward[(u,v)][(u+1,v)] = flow[(u,v)]*(phermone[(u,v)][(u+1,v)]/total_phermones)
-            backward[(u+1,v)][(u,v)] = forward[(u,v)][(u+1,v)]
-            forward[(u,v)][(u-1,v)] = flow[(u,v)]*(phermone[(u,v)][(u-1,v)]/total_phermones)
-            backward[(u,v)][(u-1,v)] = forward[(u,v)][(u-1,v)]
-            forward[(u,v)][(u,v+1)] = flow[(u,v)]*(phermone[(u,v)][(u,v+1)]/total_phermones)
-            backward[(u,v)][(u,v+1)] = forward[(u,v)][(u,v+1)]
-            forward[(u,v)][(u,v-1)] = flow[(u,v)]*(phermone[(u,v)][(u,v-1)]/total_phermones)
-            backward[(u,v)][(u,v-1)] = forward[(u,v)][(u,v-1)]
-          
-N = 10
-source = [1,2]
-base_flow_amount = 15
-phermone = graph.pheromone(N)
-flow = create_flow(True, N, source, base_flow_amount)
-update_flow(flow, phermone, N)
 
-# TODO: implement new flow update function!
-# goal: a helper function to update the flow to t + 1, determining "forward" by the interpretation of who is source and who is sink
-# input: pheromone values, forward edge values, t, source, sink
-# output: updated forward edge values
-# 
-# step 0: initialize new edge values and initialize vertex flow values to 0 for the time being
-# step 1: take in edge values and compute the flow at vertices at t + 1
-# step 1.1: add a base value to the source vertex to represent the generation of new ants at the source
-# step 2: use vertices to compute edge values for t + 1 in a bfs style with a visited set and neighbor set
-# step 2.1: only update edge values for edges that have a value = 0/haven't been visited yet
-# step 2.2: only write edge values for the exact direction of flow to aid in the vertex computation at the next step and for the continued running
-# step 3: output the updated edge values
-#
-# intended use: run this function for both the source as the source and the sink as the source (to get both forward and backward), then update the pheromone values based on the flow values
-# this will be involved in an overall t-iterated loop that goes until we reach convergence to the shortest path
+def update_pheromone(pheromone : torch.Tensor, ants : torch.Tensor, decay=0.9):
+    '''
+    Updates the pheromone levels on the edges based on the flow of ants and a decay factor.
+    The pheromone levels are updated according to the formula:
+    pheromone = decay * (pheromone + ants[i,j] + ants[j,i])
+    '''
+    pheromone = decay * (pheromone + ants + ants.T)
+    return pheromone
+
+
+def init_ants(n):
+    '''
+    Initializes a tensor to hold the flow of ants in the graph. Each ant is represented as a flow along an edge in the graph.
+    Each edge is set to zero for initialization.
+    '''
+    ants = torch.zeros((n**2, n**2), dtype=torch.float32)
+    return ants
+
+def update_ants(ants : torch.Tensor, pheromone : torch.Tensor, source : int, destination : int, ants_per_step : int):
+    '''
+    Updates the flow of ants in the graph based on the pheromone levels and the source and destination nodes.
+    The flow of ants is updated according to the formula:
+    ants[i,j] = (pheromone[i,j] / sum(pheromone[i,:])) * v_ants[i] for i != destination
+    ants[destination,:] = ants_per_step for all edges leading out of the destination node
+    '''
+    # Calculate the total flow for each node using pytorch's sum function to sum along the columns of the ants matrix
+    # This follows the paper's equation for the flow on a node being the sum of flow going into that node
+    v_ants = torch.sum(ants, dim=0)
+    v_ants[source] = ants_per_step  # Add new ants at the source node
+    queue = deque([source])
+    visited = set()
+    
+    while queue and queue[0] != destination:
+        curr_node = queue.popleft()
+        if curr_node in visited:
+            continue
+        visited.add(curr_node)
+        
+        # Calculate the flow of ants from the current node to its neighbors based on the pheromone levels
+        ants[curr_node] = pheromone[curr_node] / torch.sum(pheromone[curr_node]) * v_ants[curr_node]
+        
+        # Add unvisited neighbors to the queue
+        neighbors = torch.nonzero(pheromone[curr_node] > 0).squeeze()
+        if neighbors.dim() == 0:
+            neighbors = neighbors.unsqueeze(0)
+        for neighbor in neighbors:
+            neighbor_int = neighbor.item()
+            if neighbor_int not in visited:
+                queue.append(neighbor_int)
+    
+    return ants
+
+def simulate_ants(n, source, destination, ants_per_step, decay, iterations):
+    '''
+    Simulates the ant algorithm for a given number of iterations. Initializes the pheromone levels and ant flows, then iteratively updates them.
+    '''
+    pheromone = init_pheromones(n)
+    ants = init_ants(n)
+    
+    for _ in range(iterations):
+        ants = update_ants(ants, pheromone, source, destination, ants_per_step)
+        ants = update_ants(ants, pheromone, destination, source, ants_per_step)
+        pheromone = update_pheromone(pheromone, ants, decay)
+    
+    return pheromone, ants
 
 # TODO: implement the path recovery function for the ant algorithm
