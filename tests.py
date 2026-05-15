@@ -57,7 +57,6 @@ def init_test():
   pathfinding algorithms (Dijkstra's, A*, BFS, DFS) in finding shortest paths from the anthill to the food on 
   the graph against the performance of our distributed pheromone-based algorithm.
   """
-<<<<<<< HEAD
   n = 5
   T = 500
   decay = 0.9
@@ -65,15 +64,6 @@ def init_test():
   # food = torch.randint(0, n**2, (1,))
   anthill = 3
   food = 5
-=======
-  n = 10
-  T = 100
-  decay = 0.5
-  # anthill = torch.randint(0, n**2, (1,))
-  # food = torch.randint(0, n**2, (1,))
-  anthill = 5
-  food = 67
->>>>>>> cbf1aaf (Fix ant logic to remove double counting edges)
   grid = init_pheromones(n)
   visualization.source_node = anthill
   visualization.destination_node = food
