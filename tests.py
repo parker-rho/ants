@@ -1,5 +1,6 @@
 import torch
 from ant import *
+import visualization
 
 def dijkstras(anthill: int, food: int, graph: torch.Tensor):
   """
@@ -61,9 +62,11 @@ def init_test():
   decay = 0.9
   # anthill = torch.randint(0, n**2, (1,))
   # food = torch.randint(0, n**2, (1,))
-  anthill = 5
-  food = 9
+  anthill = 3
+  food = 5
   grid = init_pheromones(n)
+  visualization.source_node = anthill
+  visualization.destination_node = food
 
   path_dijkstra = dijkstras(anthill, food, grid)
   pheromone, ants = simulate_ants(n, anthill, food, 100, decay, T)

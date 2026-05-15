@@ -5,6 +5,9 @@ import torch
 
 call_count = 0
 
+source_node = None
+destination_node = None
+
 def visualize(pheromone: torch.Tensor):
     """
     Creates a visualiation using matplotlib of the pheromone graph at a 
@@ -25,6 +28,7 @@ def visualize(pheromone: torch.Tensor):
     ax.set_xlim(-0.5, n - 0.5)
     ax.set_ylim(-0.5, n - 0.5)
     
+    # Normalize pheromone values to [0, 1]
     p_min, p_max = p[p > 0].min(), p.max()
     
     for u in range(n**2):
@@ -53,7 +57,18 @@ def visualize(pheromone: torch.Tensor):
     
     for node in range(n**2):
         row, col = divmod(node, n)
-        ax.plot(col, row, 'ko', markersize=4)
+        if node == source_node:
+            ax.plot(col, row, 'go', markersize=10)
+            ax.annotate('anthill', xy=(col, row), xytext=(col - 0.6, row + 0.5),
+                        fontsize=8, color='green',
+                        arrowprops=dict(arrowstyle='->', color='green'))
+        elif node == destination_node:
+            ax.plot(col, row, 'ro', markersize=10)
+            ax.annotate('food source', xy=(col, row), xytext=(col + 0.2, row + 0.5),
+                        fontsize=8, color='red',
+                        arrowprops=dict(arrowstyle='->', color='red'))
+        else:
+            ax.plot(col, row, 'ko', markersize=4)
     
     plt.tight_layout()
     plt.show(block=True)
