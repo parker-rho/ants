@@ -58,7 +58,7 @@ def init_test():
   """
   n = 5
   T = 500
-  decay = 0.5
+  decay = 0.9
   # anthill = torch.randint(0, n**2, (1,))
   # food = torch.randint(0, n**2, (1,))
   anthill = 5

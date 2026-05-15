@@ -33,6 +33,7 @@ def update_pheromone(pheromone : torch.Tensor, ants : torch.Tensor, decay=0.9, s
     '''
     pheromone = decay * (pheromone + ants + ants.T)
     if step is not None and step % 50 == 0:
+        print_pheromones(pheromone, label="Pheromones")
         visualization.visualize(pheromone)
     return pheromone
 
@@ -98,14 +99,31 @@ def simulate_ants(n, source, destination, ants_per_step, decay, iterations):
     return pheromone, ants
 
 def print_pheromones(pheromone: torch.Tensor, label: str = ""):
+    """
+    Pretty prints the pheromone edge graph. Matches the visualization values
+    """
     p = pheromone.numpy()
     n = int(p.shape[0] ** 0.5)
     print(f"\n{label}")
-    for u in range(n**2):
-        for v in range(u + 1, n**2):
-            if p[u, v] > 0:
-                u_row, u_col = divmod(u, n)
-                v_row, v_col = divmod(v, n)
-                print(f"  ({u_row},{u_col}) -- ({v_row},{v_col}): {p[u,v]:.4f}")
+    
+    for row in range(n - 1, -1, -1):  
+        h_line = ""
+        for col in range(n):
+            node = row * n + col
+            h_line += f"*"
+            if col < n - 1:
+                edge_val = p[node, node + 1]
+                h_line += f"--{edge_val:6.2f}--"
+        print(h_line)
+        
+        if row > 0:
+            v_line = ""
+            for col in range(n):
+                node = row * n + col
+                edge_val = p[node, node - n]
+                v_line += f"|{edge_val:6.2f} "
+                if col < n - 1:
+                    v_line += "         "
+            print(v_line)
 
 # TODO: implement the path recovery function for the ant algorithm
