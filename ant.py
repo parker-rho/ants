@@ -76,13 +76,6 @@ def simulate_ants(n, source, destination, initial_ants, ants_rate, decay, iterat
         fractions_b = (pheromone * backward_mask) / (pheromone * backward_mask).sum(dim=1, keepdim=True).clamp(min=1e-10)
         fractions_b[source] = 0
 
-        print("fractions sum:", fractions.sum())
-        print("fractions_b sum:", fractions_b.sum())
-        print("forward_nodes:", forward_nodes)
-        print("backward_nodes:", backward_nodes)
-        print("forward_mask[source]:", forward_mask[source])
-        print("forward_mask[source] nonzero:", forward_mask[source].nonzero())
-
         # Calculate the flow of ants along each edge based on the pheromone levels and the current flow of ants at each node
         forward_ants = fractions * forward_nodes.unsqueeze(1)
         backward_ants = fractions_b * backward_nodes.unsqueeze(1)
@@ -136,5 +129,3 @@ def print_pheromones(pheromone: torch.Tensor, label: str = ""):
                 if col < n - 1:
                     v_line += "         "
             print(v_line)
-
-# TODO: implement the path recovery function for the ant algorithm
