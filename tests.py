@@ -56,13 +56,13 @@ def init_test():
   pathfinding algorithms (Dijkstra's, A*, BFS, DFS) in finding shortest paths from the anthill to the food on 
   the graph against the performance of our distributed pheromone-based algorithm.
   """
-  n = 3
+  n = 5
   T = 500
-  decay = 0.1
+  decay = 0.5
   # anthill = torch.randint(0, n**2, (1,))
   # food = torch.randint(0, n**2, (1,))
-  anthill = 3
-  food = 5
+  anthill = 5
+  food = 9
   grid = init_pheromones(n)
 
   path_dijkstra = dijkstras(anthill, food, grid)

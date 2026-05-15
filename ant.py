@@ -1,5 +1,6 @@
 import torch
 from collections import deque
+import visualization
 
 def init_pheromones(n):
     """
@@ -24,13 +25,15 @@ def init_pheromones(n):
     return pheromone
 
 
-def update_pheromone(pheromone : torch.Tensor, ants : torch.Tensor, decay=0.9):
+def update_pheromone(pheromone : torch.Tensor, ants : torch.Tensor, decay=0.9, step=None):
     '''
     Updates the pheromone levels on the edges based on the flow of ants and a decay factor.
     The pheromone levels are updated according to the formula:
     pheromone = decay * (pheromone + ants[i,j] + ants[j,i])
     '''
     pheromone = decay * (pheromone + ants + ants.T)
+    if step is not None and step % 50 == 0:
+        visualization.visualize(pheromone)
     return pheromone
 
 
@@ -72,7 +75,7 @@ def update_ants(ants : torch.Tensor, pheromone : torch.Tensor, source : int, des
         for neighbor in neighbors:
             neighbor_int = neighbor.item()
             if neighbor_int not in visited:
-                queue.append(neighbor_int)
+                queue.append(int(neighbor_int))
     
     return ants
 
@@ -82,12 +85,27 @@ def simulate_ants(n, source, destination, ants_per_step, decay, iterations):
     '''
     pheromone = init_pheromones(n)
     ants = init_ants(n)
+
+    print_pheromones(pheromone, label="Initial pheromones:")
     
-    for _ in range(iterations):
+    for step in range(iterations):
         ants = update_ants(ants, pheromone, source, destination, ants_per_step)
         ants = update_ants(ants, pheromone, destination, source, ants_per_step)
-        pheromone = update_pheromone(pheromone, ants, decay)
+        pheromone = update_pheromone(pheromone, ants, decay, step=step)
+
+    print_pheromones(pheromone, label="Final pheromones:")
     
     return pheromone, ants
+
+def print_pheromones(pheromone: torch.Tensor, label: str = ""):
+    p = pheromone.numpy()
+    n = int(p.shape[0] ** 0.5)
+    print(f"\n{label}")
+    for u in range(n**2):
+        for v in range(u + 1, n**2):
+            if p[u, v] > 0:
+                u_row, u_col = divmod(u, n)
+                v_row, v_col = divmod(v, n)
+                print(f"  ({u_row},{u_col}) -- ({v_row},{v_col}): {p[u,v]:.4f}")
 
 # TODO: implement the path recovery function for the ant algorithm
