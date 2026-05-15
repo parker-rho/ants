@@ -28,11 +28,11 @@ def dijkstras(anthill: int, food: int, graph: torch.Tensor):
   while not visited.all():
     # Choose the unvisited node with the smallest distance
     current_node = torch.argmin(distances.masked_fill(visited, float('inf'))).item()
-    visited[current_node] = True
+    visited[int(current_node)] = True
 
     # Uses the adjacency list given by [graph]
-    neighbors = graph[current_node]
-    new_distances = distances[current_node] + neighbors
+    neighbors = graph[int(current_node)]
+    new_distances = distances[int(current_node)] + neighbors
 
     # Distances for a node are only updated if there is an edge from [current_node] and it hasn't been visited
     valid = (neighbors > 0) & ~visited
@@ -46,7 +46,7 @@ def dijkstras(anthill: int, food: int, graph: torch.Tensor):
   current = food
   while current != -1:
     path.append(current)
-    current = previous_nodes[current].item()
+    current = previous_nodes[int(current)].item()
   path.reverse()
 
   return path
@@ -57,6 +57,7 @@ def init_test():
   pathfinding algorithms (Dijkstra's, A*, BFS, DFS) in finding shortest paths from the anthill to the food on 
   the graph against the performance of our distributed pheromone-based algorithm.
   """
+<<<<<<< HEAD
   n = 5
   T = 500
   decay = 0.9
@@ -64,17 +65,21 @@ def init_test():
   # food = torch.randint(0, n**2, (1,))
   anthill = 3
   food = 5
+=======
+  n = 10
+  T = 100
+  decay = 0.5
+  # anthill = torch.randint(0, n**2, (1,))
+  # food = torch.randint(0, n**2, (1,))
+  anthill = 5
+  food = 67
+>>>>>>> cbf1aaf (Fix ant logic to remove double counting edges)
   grid = init_pheromones(n)
   visualization.source_node = anthill
   visualization.destination_node = food
 
   path_dijkstra = dijkstras(anthill, food, grid)
-  pheromone, ants = simulate_ants(n, anthill, food, 100, decay, T)
-  print("Dijkstra's path:", path_dijkstra)
-  print("Pheromone matrix:")
-  print(pheromone)
-  print("Ants matrix:")
-  print(ants)
+  pheromone = simulate_ants(n, anthill, food, 50, 20, decay, T)
 
 if __name__ == "__main__":
     init_test()

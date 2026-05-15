@@ -24,79 +24,90 @@ def init_pheromones(n):
 
     return pheromone
 
-
-def update_pheromone(pheromone : torch.Tensor, ants : torch.Tensor, decay=0.9, step=None):
-    '''
-    Updates the pheromone levels on the edges based on the flow of ants and a decay factor.
-    The pheromone levels are updated according to the formula:
-    pheromone = decay * (pheromone + ants[i,j] + ants[j,i])
-    '''
-    pheromone = decay * (pheromone + ants + ants.T)
-    if step is not None and step % 50 == 0:
-        print_pheromones(pheromone, label="Pheromones")
-        visualization.visualize(pheromone)
-    return pheromone
-
-
-def init_ants(n):
-    '''
-    Initializes a tensor to hold the flow of ants in the graph. Each ant is represented as a flow along an edge in the graph.
-    Each edge is set to zero for initialization.
-    '''
-    ants = torch.zeros((n**2, n**2), dtype=torch.float32)
-    return ants
-
-def update_ants(ants : torch.Tensor, pheromone : torch.Tensor, source : int, destination : int, ants_per_step : int):
-    '''
-    Updates the flow of ants in the graph based on the pheromone levels and the source and destination nodes.
-    The flow of ants is updated according to the formula:
-    ants[i,j] = (pheromone[i,j] / sum(pheromone[i,:])) * v_ants[i] for i != destination
-    ants[destination,:] = ants_per_step for all edges leading out of the destination node
-    '''
-    # Calculate the total flow for each node using pytorch's sum function to sum along the columns of the ants matrix
-    # This follows the paper's equation for the flow on a node being the sum of flow going into that node
-    v_ants = torch.sum(ants, dim=0)
-    v_ants[source] = ants_per_step  # Add new ants at the source node
-    queue = deque([source])
-    visited = set()
+def get_edge_mask(pheromone, source, n):
+    """
+    Returns a mask where mask[u,v] = True if v is further from source than u.
+    The distances are computed using standard BFS. Note that pheromone
+    works as an adjacency matrix here since we only call this function before
+    any pheromone updates have been made.
+    """
+    n_nodes = n**2
     
-    while queue and queue[0] != destination:
-        curr_node = queue.popleft()
-        if curr_node in visited:
-            continue
-        visited.add(curr_node)
-        
-        # Calculate the flow of ants from the current node to its neighbors based on the pheromone levels
-        ants[curr_node] = pheromone[curr_node] / torch.sum(pheromone[curr_node]) * v_ants[curr_node]
-        
-        # Add unvisited neighbors to the queue
-        neighbors = torch.nonzero(pheromone[curr_node] > 0).squeeze()
-        if neighbors.dim() == 0:
-            neighbors = neighbors.unsqueeze(0)
-        for neighbor in neighbors:
-            neighbor_int = neighbor.item()
-            if neighbor_int not in visited:
-                queue.append(int(neighbor_int))
+    # BFS via repeated matrix-vector multiplication
+    dist = torch.full((n_nodes,), float('inf'))
+    dist[source] = 0
+    frontier = torch.zeros(n_nodes)
+    frontier[source] = 1.0
     
-    return ants
+    for d in range(n_nodes):
+        # Spread the frontier to the next layer of nodes
+        next_frontier = (pheromone @ frontier) > 0
+        # Only keep nodes not yet visited
+        unvisited = dist == float('inf')
+        newly_reached = next_frontier & unvisited
+        if not newly_reached.any():
+            break
+        dist[newly_reached] = d + 1
+        frontier = newly_reached.float()
+    mask = dist.unsqueeze(1) < dist.unsqueeze(0)
+    return mask
 
-def simulate_ants(n, source, destination, ants_per_step, decay, iterations):
+def simulate_ants(n, source, destination, initial_ants, ants_rate, decay, iterations):
     '''
     Simulates the ant algorithm for a given number of iterations. Initializes the pheromone levels and ant flows, then iteratively updates them.
     '''
     pheromone = init_pheromones(n)
-    ants = init_ants(n)
+    # These vectors hold the flow at each node (i.e. the value of f_u in the paper)
+    forward_nodes = torch.zeros(n**2)
+    backward_nodes = torch.zeros(n**2)
+    forward_nodes[source] = initial_ants
+    backward_nodes[destination] = initial_ants
 
-    print_pheromones(pheromone, label="Initial pheromones:")
-    
+    # Compute masks for determining forward and backward edges.
+    forward_mask = get_edge_mask(pheromone, source, n)
+    backward_mask = get_edge_mask(pheromone, destination, n)
+
     for step in range(iterations):
-        ants = update_ants(ants, pheromone, source, destination, ants_per_step)
-        ants = update_ants(ants, pheromone, destination, source, ants_per_step)
-        pheromone = update_pheromone(pheromone, ants, decay, step=step)
+        # Normalize pheromone rows by the row sum in line with the formula for flow:
+        # f_{uv} = (pheromone[i,j] / sum(pheromone[i,:])) * f_u for u != destination
+        # In other words, fractions is the (pheromone[i,j] / sum(pheromone[i,:])) part of the formula
+        fractions = (pheromone * forward_mask) / (pheromone * forward_mask).sum(dim=1, keepdim=True).clamp(min=1e-10)
+        fractions[destination] = 0
+        fractions_b = (pheromone * backward_mask) / (pheromone * backward_mask).sum(dim=1, keepdim=True).clamp(min=1e-10)
+        fractions_b[source] = 0
 
-    print_pheromones(pheromone, label="Final pheromones:")
-    
-    return pheromone, ants
+        print("fractions sum:", fractions.sum())
+        print("fractions_b sum:", fractions_b.sum())
+        print("forward_nodes:", forward_nodes)
+        print("backward_nodes:", backward_nodes)
+        print("forward_mask[source]:", forward_mask[source])
+        print("forward_mask[source] nonzero:", forward_mask[source].nonzero())
+
+        # Calculate the flow of ants along each edge based on the pheromone levels and the current flow of ants at each node
+        forward_ants = fractions * forward_nodes.unsqueeze(1)
+        backward_ants = fractions_b * backward_nodes.unsqueeze(1)
+
+        # New values for the flow at each node
+        new_forward_nodes = forward_ants.sum(dim=0)
+        new_backward_nodes = backward_ants.sum(dim=0)
+
+        # Reinject at sources, absorb at sinks
+        new_forward_nodes[source] = initial_ants + (ants_rate * step)
+        new_forward_nodes[destination] = 0
+        new_backward_nodes[destination] = initial_ants + (ants_rate * step)
+        new_backward_nodes[source] = 0
+
+        # Pheromone update
+        total_ants = forward_ants + backward_ants
+        pheromone = decay * (pheromone + total_ants + total_ants.T)
+
+        forward_nodes = new_forward_nodes
+        backward_nodes = new_backward_nodes
+
+        if step % 50 == 0:
+            visualization.visualize(pheromone)    
+    visualization.visualize(pheromone)
+    return pheromone
 
 def print_pheromones(pheromone: torch.Tensor, label: str = ""):
     """
