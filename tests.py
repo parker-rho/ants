@@ -1,6 +1,7 @@
 import torch
 from ant import *
 import visualization
+import time
 
 def dijkstras(anthill: int, food: int, graph: torch.Tensor):
   """
@@ -68,8 +69,15 @@ def init_test():
   visualization.source_node = anthill
   visualization.destination_node = food
 
+  start = time.time()
   path_dijkstra = dijkstras(anthill, food, grid)
+  dijkstra_time = time.time() - start
+  print(f"Dijkstra's completed in {dijkstra_time: .4f} seconds")
+
+  start = time.time()
   pheromone = simulate_ants(n, anthill, food, 50, 20, decay, T)
+  ants_time = time.time() - start
+  print(f"Ant simulation completed in {ants_time: .4f} seconds")
 
 if __name__ == "__main__":
     init_test()
